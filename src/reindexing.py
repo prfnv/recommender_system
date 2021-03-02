@@ -49,3 +49,21 @@ def reindexing_clientid_itemid(user_actions: pd.DataFrame) -> pd.DataFrame:
     user_actions['clientid'] = user_actions['clientid'].map(user_mapping.set_index('old')['new'])
     user_actions['itemid'] = user_actions['itemid'].map(item_mapping.set_index('old')['new'])
     return (user_actions, user_mapping, item_mapping)
+
+
+def reindexing_itemid(data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Функция для переиндексации индексов товаров.
+    
+    Args:
+        data: Датафрейм с текстовым описанием товаров.
+    """
+    
+    items = data['itemid'].unique()
+    items_cat = np.arange(0, len(items), dtype='uint32')
+    
+    items_mapping = pd.DataFrame({'old': items, 'new': items_cat})
+    
+    data['itemid'] = data['itemid'].map(items_mapping.set_index('old')['new'])
+    
+    return (data, items_mapping)
