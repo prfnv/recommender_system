@@ -19,6 +19,7 @@ def popularity(data_action: pd.DataFrame,
     else:
         id_count_Series = data_action[~data_action['action_type']]['itemid'].value_counts()
     df = id_count_Series.rename_axis('jointitemid').reset_index(name= f'{action}_cnt')
+    
     return data.merge(df, on='jointitemid', how="left").fillna(0)
 
 
@@ -42,9 +43,10 @@ def ctr(data_action: pd.DataFrame,
     
     df = df1.merge(df2.set_index('jointitemid'), on='jointitemid')
     
-    df['ctr'] = df['to_cart_cnt'] / df['view_cnt']
+    df['ctr'] = df['to_cart_cnt'] / (df['view_cnt'] + 1.)
     
     df.drop(['view_cnt', 'to_cart_cnt'], axis=1, inplace=True)
+    
     return data.merge(df, on='jointitemid', how='left').fillna(0)
 
 
@@ -60,12 +62,13 @@ def date_first_view(data_action: pd.DataFrame,
     
     id_item_series = data_action[~data_action['action_type']].groupby(['itemid'], sort=False)['timestamp'].min()
     df = id_item_series.rename_axis('jointitemid').reset_index(name='novelty_cnt')
+    
     return data.merge(df, on='jointitemid', how="left").fillna(0)
 
 
-def day_avg_popularity(data_action: pd.DataFrame,
-                       data: pd.DataFrame,
-                       action: str) -> pd.DataFrame:
+def mean_amount_per_day(data_action: pd.DataFrame,
+                        data: pd.DataFrame,
+                        action: str) -> pd.DataFrame:
     '''
     Признак с подсчетом среднего количества добавлений в корзину/просмотров в день.
     
@@ -84,7 +87,7 @@ def day_avg_popularity(data_action: pd.DataFrame,
          
     df_count_in_day = count_in_day_series.rename_axis(['jointitemid', 'timestamp']).reset_index(name='count_day')
     
-    df_count_in_day[f'{action}_day_avg_cnt'] = df_count_in_day.groupby(['jointitemid'])['count_day'].transform('mean')
+    df_count_in_day[f'mean_amount_per_day_{action}'] = df_count_in_day.groupby(['jointitemid'])['count_day'].transform('mean')
     df_count_in_day.drop(['timestamp', 'count_day'], axis=1, inplace=True)
     df_count_in_day = df_count_in_day.drop_duplicates('jointitemid').reset_index(drop=True)
     
@@ -107,6 +110,7 @@ def views_last_day(data_action: pd.DataFrame,
     data_last_day_views = data_views[data_views['timestamp'] == max(data_views['timestamp'])]
     df_last_day = data_last_day_views.groupby(['itemid'])['timestamp'].size()
     new_df = df_last_day.rename_axis('jointitemid').reset_index(name='last_day_views_cnt')
+    
     return data.merge(new_df, on='jointitemid', how='left').fillna(0)
 
 
@@ -126,6 +130,7 @@ def cart_add_last_day(data_action: pd.DataFrame,
     data_last_day_tocart = data_tocart[data_tocart['timestamp'] == max(data_tocart['timestamp'])]
     df_last_day = data_last_day_tocart.groupby(['itemid'])['timestamp'].size()
     new_df = df_last_day.rename_axis('jointitemid').reset_index(name='last_day_to_cart_cnt')
+    
     return data.merge(new_df, on='jointitemid', how="left").fillna(0)
 
 
@@ -141,8 +146,9 @@ def relations(data: pd.DataFrame) -> pd.DataFrame:
          data: Датафрейм содержащий таргет.
     '''
     
-    data['relation_ldv_mean'] = data['last_day_views_cnt'] / data['view_day_avg_cnt']
-    data['relation_ldtocart_mean'] = data['last_day_to_cart_cnt'] / data['to_cart_day_avg_cnt']
+    data['relation_ldv_mean'] = data['last_day_views_cnt'] / data['mean_amount_per_day_view']
+    data['relation_ldtocart_mean'] = data['last_day_to_cart_cnt'] / data['mean_amount_per_day_to_cart']
+    
     return data.fillna(0)
 
 
@@ -190,6 +196,7 @@ def daily_views_to_cart(user_actions: pd.DataFrame,
         .fillna(0)
     )
     item_day_df = item_day_df.rename(columns={'count': 'count_'+action})
+    
     return item_day_df
 
 
@@ -209,6 +216,7 @@ def get_coef(data: pd.DataFrame, action: str) -> np.float64:
     if (7 * (x**2).sum() - x.sum()**2) == 0:
         return 0
     k = (7 * (x * y).sum() - x.sum()*y.sum()) / (7 * (x**2).sum() - x.sum()**2)
+    
     return k
 
 
@@ -228,4 +236,5 @@ def mnk_coef(item_day: pd.DataFrame, action: str) -> pd.DataFrame:
         k = get_coef(group, action)
         items.append(group_name)
         ks.append(k)
+        
     return pd.DataFrame({'itemid': items, 'mnk_'+action: ks})

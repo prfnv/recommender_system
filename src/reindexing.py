@@ -23,6 +23,7 @@ def reindexing_sessionid_itemid(session_item: pd.DataFrame) -> pd.DataFrame:
 
     session_item['sessionid'] = session_item['sessionid'].map(user_mapping.set_index('old')['new'])
     session_item['itemid'] = session_item['itemid'].map(item_mapping.set_index('old')['new'])
+    
     return (session_item, user_mapping, item_mapping)
 
 
@@ -48,6 +49,7 @@ def reindexing_clientid_itemid(user_actions: pd.DataFrame) -> pd.DataFrame:
 
     user_actions['clientid'] = user_actions['clientid'].map(user_mapping.set_index('old')['new'])
     user_actions['itemid'] = user_actions['itemid'].map(item_mapping.set_index('old')['new'])
+    
     return (user_actions, user_mapping, item_mapping)
 
 
@@ -67,3 +69,21 @@ def reindexing_itemid(data: pd.DataFrame) -> pd.DataFrame:
     data['itemid'] = data['itemid'].map(items_mapping.set_index('old')['new'])
     
     return (data, items_mapping)
+
+
+def index_groupid(data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Функция для создания группы id.
+    
+    Args:
+        data: Датафрейм с признаками.
+    """
+    
+    ids = data['clientid_itemid'].unique()
+    ids_cat = np.arange(0, len(ids), dtype='uint32')
+    
+    group_id = pd.DataFrame({'old': ids, 'new': ids_cat})
+    
+    data['group_id'] = data['clientid_itemid'].map(group_id.set_index('old')['new'])
+    
+    return data
